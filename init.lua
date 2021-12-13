@@ -5,22 +5,22 @@ local port = settings:get('discord.port') or 8080
 local timeout = 10
 
 local sr = minetest.get_mod_storage()
-local valid_commands = sr:to_table()
+local valid_commands = minetest.deserialize(sr:get_string("valid_commands")) or {}
 
 local S = minetest.get_translator("discordmt")
 
 discord = {}
 
+function discord.add_command(command)
+	table.insert(valid_commands, command)
+	sr:set_string("valid_commands", minetest.serialize(valid_commands))
+end
+
 if not next(valid_commands) then
 	discord.add_command("dmt_add")
 end
 
-function discord.add_command(command)
-	table.insert(valid_commands, command)
-	sr:from_table(valid_commands)
-end
-
-minetest.register_chatcommand("dmt_add" {
+minetest.register_chatcommand("dmt_add", {
 	params = S("<list of commands to allow in discord bridge"),
 	description = S("Add to list of valid commands available to use in discord bridge"),
 	privs = {server = true},
@@ -28,15 +28,19 @@ minetest.register_chatcommand("dmt_add" {
 		if param == "" then
 			minetest.chat_send_player(name, S("Usage: dmt_add <chat command>"))
 		else
-			for str in string.gmath(param, "([^%s]+)") do
-				discord.add_command(str)
-				minetest.chat_send_player(name, S("Added %1 to valid discord chat commands", str))
+			for str in string.gmatch(param, "([^%s]+)") do
+				if table.indexof(valid_commands, str) == -1 then
+					discord.add_command(str)
+					minetest.chat_send_player(name, S("Added @1 to valid discord chat commands", str))
+				else
+					minetest.chat_send_player(name, S("@1 already is a valid command!", str))
+				end
 			end
 		end
 	end
 })
 
-minetest.register_chatcommand("dmt_rem" {
+minetest.register_chatcommand("dmt_rem", {
 	params = S("<list of commands to remove from discord bridge allowed commands"),
 	description = S("Remove from list of valid commands available to use in discord bridge"),
 	privs = {server = true},
@@ -44,23 +48,22 @@ minetest.register_chatcommand("dmt_rem" {
 		if param == "" then
 			minetest.chat_send_player(name, S("Usage: dmt_rem <chat command>"))
 		else
-			for str in string.gmath(param, "([^%s]+)") do
+			for str in string.gmatch(param, "([^%s]+)") do
 				local bfound = false
 				for i = 1, #valid_commands do
 					if (valid_commands[i] == str) then
 						table.remove(valid_commands, i)
 						bfound = true
 					end
-					if bfound then
-						minetest.chat_send_player(name, S("Removed %1 from valid discord chat commands", str))
-					else
-						minetest.chat_send_player(name, S("%1 is not in the list of valid commands!", str))
-					end
+				end
+				if bfound then
+					minetest.chat_send_player(name, S("Removed @1 from valid discord chat commands", str))
+				else
+					minetest.chat_send_player(name, S("@1 is not in the list of valid commands!", str))
 				end
 			end
-			sr:from_table(valid_commands)
+			sr:set_string("valid_commands", minetest.serialize(valid_commands))
 		end
-	end
 	end
 })
 
@@ -101,7 +104,7 @@ discord.handle_response = function(response)
     if data.commands then
         local commands = minetest.registered_chatcommands
         for _, v in pairs(data.commands) do
-            if commands[v.command] then
+            if indexof(valid_commands, v.command) ~= -1 and commands[v.command] then
                 if minetest.get_ban_description(v.name) ~= '' then
                     discord.send('You cannot run commands because you are banned.', v.context or nil)
                     return
@@ -128,7 +131,7 @@ discord.handle_response = function(response)
                 end
                 minetest.chat_send_player = old_chat_send_player
             else
-                discord.send(('Command not found: `%s`'):format(v.command), v.context or nil)
+                discord.send(('Command not found or not allowed: `%s`'):format(v.command), v.context or nil)
             end
         end
     end
@@ -180,7 +183,7 @@ minetest.register_on_chat_message(function(name, message)
 end)
 
 local timer = 0
-minetest.register_globalstep(function(dtime)
+--[[minetest.register_globalstep(function(dtime)
     if dtime then
         timer = timer + dtime
         if timer > 0.2 then
@@ -194,7 +197,7 @@ minetest.register_globalstep(function(dtime)
             timer = 0
         end
     end
-end)
+end)]]
 
 minetest.register_on_shutdown(function()
     discord.send('*** Server shutting down...')
