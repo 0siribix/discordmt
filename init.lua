@@ -183,7 +183,7 @@ minetest.register_on_chat_message(function(name, message)
 end)
 
 local timer = 0
---[[minetest.register_globalstep(function(dtime)
+minetest.register_globalstep(function(dtime)
     if dtime then
         timer = timer + dtime
         if timer > 0.2 then
@@ -197,7 +197,7 @@ local timer = 0
             timer = 0
         end
     end
-end)]]
+end)
 
 minetest.register_on_shutdown(function()
     discord.send('*** Server shutting down...')
