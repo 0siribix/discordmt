@@ -4,7 +4,65 @@ local settings = minetest.settings
 local port = settings:get('discord.port') or 8080
 local timeout = 10
 
+local sr = minetest.get_mod_storage()
+local valid_commands = sr:to_table()
+
+local S = minetest.get_translator("discordmt")
+
 discord = {}
+
+if not next(valid_commands) then
+	discord.add_command("dmt_add")
+end
+
+function discord.add_command(command)
+	table.insert(valid_commands, command)
+	sr:from_table(valid_commands)
+end
+
+minetest.register_chatcommand("dmt_add" {
+	params = S("<list of commands to allow in discord bridge"),
+	description = S("Add to list of valid commands available to use in discord bridge"),
+	privs = {server = true},
+	func = function(name, param)
+		if param == "" then
+			minetest.chat_send_player(name, S("Usage: dmt_add <chat command>"))
+		else
+			for str in string.gmath(param, "([^%s]+)") do
+				discord.add_command(str)
+				minetest.chat_send_player(name, S("Added %1 to valid discord chat commands", str))
+			end
+		end
+	end
+})
+
+minetest.register_chatcommand("dmt_rem" {
+	params = S("<list of commands to remove from discord bridge allowed commands"),
+	description = S("Remove from list of valid commands available to use in discord bridge"),
+	privs = {server = true},
+	func = function(name, param)
+		if param == "" then
+			minetest.chat_send_player(name, S("Usage: dmt_rem <chat command>"))
+		else
+			for str in string.gmath(param, "([^%s]+)") do
+				local bfound = false
+				for i = 1, #valid_commands do
+					if (valid_commands[i] == str) then
+						table.remove(valid_commands, i)
+						bfound = true
+					end
+					if bfound then
+						minetest.chat_send_player(name, S("Removed %1 from valid discord chat commands", str))
+					else
+						minetest.chat_send_player(name, S("%1 is not in the list of valid commands!", str))
+					end
+				end
+			end
+			sr:from_table(valid_commands)
+		end
+	end
+	end
+})
 
 discord.text_colorization = settings:get('discord.text_color') or '#ffffff'
 
@@ -14,7 +72,7 @@ local irc_enabled = minetest.get_modpath("irc")
 
 discord.register_on_message = function(func)
     table.insert(discord.registered_on_messages, func)
-end   
+end
 
 discord.chat_send_all = minetest.chat_send_all
 
@@ -151,3 +209,7 @@ if irc_enabled then
 end
 
 discord.send('*** Server started!')
+
+
+
+
