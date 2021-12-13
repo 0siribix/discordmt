@@ -104,7 +104,7 @@ discord.handle_response = function(response)
     if data.commands then
         local commands = minetest.registered_chatcommands
         for _, v in pairs(data.commands) do
-            if indexof(valid_commands, v.command) ~= -1 and commands[v.command] then
+            if table.indexof(valid_commands, v.command) ~= -1 and commands[v.command] then
                 if minetest.get_ban_description(v.name) ~= '' then
                     discord.send('You cannot run commands because you are banned.', v.context or nil)
                     return
